@@ -140,6 +140,8 @@
             $containerOf: function($item) {
                 if (this.settings.container === 'parent') {
                     return $item.parent();
+                } else if (this.settings.container instanceof jQuery) {
+                    return this.settings.container;
                 } else if (typeof this.settings.container === 'function') {
                     return this.settings.container($item);
                 }
