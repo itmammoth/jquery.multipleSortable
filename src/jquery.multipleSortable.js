@@ -6,8 +6,10 @@
     var methods = {
         init: function(options) {
             var settings = $.extend({
-                selectedClass: 'selected',
+                selectedClass: 'multiple-sortable-selected',
                 orientation: 'vertical',
+                mousedown: function(e) {},
+                click: function(e) {},
             }, options);
 
             return this.each(function() {
@@ -15,8 +17,8 @@
                 var multipleSortable = new MultipleSortable($this, settings).sortable();
                 var clickable = settings.cancel ? appendNot(settings.items, settings.cancel) : settings.items;
                 $this
-                    .on('mousedown', clickable, function(e) { multipleSortable.mouseDown(e, settings); })
-                    .on('click', clickable, onClick)
+                    .on('mousedown', clickable, function(e) { multipleSortable.mouseDown(e); })
+                    .on('click', clickable, function(e) { multipleSortable.click(e); })
                     .data('plugin_multipleSortable', multipleSortable)
                     .disableSelection();
             });
@@ -25,10 +27,6 @@
 
     var appendNot = function(target, not) {
         return target + ':not("' + not + '")';
-    };
-
-    var onClick = function(e) {
-        // TODO
     };
 
     /*
@@ -48,8 +46,6 @@
      * Plugin class
      */
     var MultipleSortable = (function() {
-
-        var NAMESPACE = '.multipleSortable';
 
         /*
          * Constructor
@@ -77,13 +73,24 @@
                 } else if (e.shiftKey) {
                     this.expandSelection($item);
                 } else {
-                    console.log('without any functional keys');
-                    // TODO: ここから
+                    this.selectItem($item);
                 }
+
+                this.settings.mousedown(e);
+            },
+
+            click: function(e) {
+                var $item = $(e.currentTarget);
+
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    this.selectOnlyAnItem($item);
+                }
+
+                this.settings.click(e);
             },
 
             addSelectedItem: function($item) {
-                if ($item.hasClass(this.settings.selectedClass)) {
+                if (this.isSelecting($item)) {
                     $item.removeClass(this.settings.selectedClass);
                 } else {
                     $item.addClass(this.settings.selectedClass);
@@ -108,10 +115,29 @@
                 $item[until](this.$lastSelectedItem[0]).add(this.$lastSelectedItem).add($item)
                     .addClass(this.settings.selectedClass);
             },
+
+            selectItem: function($item) {
+                if (this.isSelecting($item)) return;
+
+                this.selectOnlyAnItem($item);
+                this.$lastSelectedItem = $item;
+            },
+
+            selectOnlyAnItem: function($item) {
+                this.globalSelectedItems().removeClass(this.settings.selectedClass);
+                $item.addClass(this.settings.selectedClass);
+            },
+
+            globalSelectedItems: function() {
+                return $('.' + this.settings.selectedClass);
+            },
+
+            isSelecting: function($item) {
+                return $item.hasClass(this.settings.selectedClass);
+            },
         });
 
         return MultipleSortable;
     })();
 
 })(jQuery);
-

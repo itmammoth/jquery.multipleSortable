@@ -13,7 +13,7 @@
       .clear {
         clear: both;
       }
-      .selected {
+      .multiple-sortable-selected {
         background-color: yellow;
       }
     </style>
@@ -49,6 +49,8 @@
       $('.v-sortable').multipleSortable({
         items: 'li',
         connectWith: '.v-sortable',
+        // mousedown: function(e) { console.log('mousedown', e) },
+        // click: function(e) { console.log('click', e) },
       });
     </script>
   </body>
