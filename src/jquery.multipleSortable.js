@@ -3,6 +3,23 @@
 ;(function($) {
     'use strict';
 
+    var JQUERY_SORTABLE_EVENTS = [
+        'activate',
+        'beforeStop',
+        'change',
+        'create',
+        'deactivate',
+        'out',
+        'over',
+        'receive',
+        'remove',
+        'sort',
+        'start',
+        'stop',
+        'update',
+    ];
+    Object.freeze(JQUERY_SORTABLE_EVENTS);
+
     var methods = {
         init: function(options) {
             var settings = $.extend({
@@ -11,9 +28,6 @@
                 orientation: 'vertical',
                 keepSelection: true,
                 click: function(e) {},
-                start: function(event, ui) {},
-                sort: function(event, ui) {},
-                stop: function(event, ui) {},
             }, options);
 
             var share = {}; // shared object
@@ -74,31 +88,45 @@
 
             sortable: function() {
                 var that = this;
-                var sortableOptions = $.extend(true, {}, this.settings, {
-                    start: function(event, ui) {
-                        that.start(event, ui);
-                        // TODO: 配列で返す？
-                        that.settings.start(event, ui);
-                    },
-                    sort: function(event, ui) {
-                        that.sort(event, ui);
-                        // TODO: 配列で返す？
-                        that.settings.sort(event, ui);
-                    },
-                    stop: function(event, ui) {
-                        that.stop(event, ui);
-                        // TODO: 配列で返す？
-                        that.settings.stop(event, ui);
-                    },
+                var sortableEvents = {};
+                JQUERY_SORTABLE_EVENTS.forEach(function(jse) {
+                    sortableEvents[jse] = function(event, ui) {
+                        that[jse] && that[jse](event, ui);
+                        that.settings[jse] && that.settings[jse](event, ui, that.share.$draggingItems);
+                    };
                 });
+                this.$el.sortable($.extend(true, {}, this.settings, sortableEvents));
 
-                this.$el.sortable(sortableOptions);
                 return this;
             },
 
             click: function(e) {
                 this.toggleSelected($(e.currentTarget));
                 this.settings.click(e);
+            },
+
+            sort: function(event, ui) {
+                var partitionedItems = this.partition(this.share.$draggingItems, ui.item);
+                this['sort_' + this.settings.orientation](ui.item, partitionedItems.prev, partitionedItems.following);
+            },
+
+            start: function(event, ui) {
+                ui.item.addClass(this.settings.selectedClass);
+                this.share.$draggingItems = this.$containerOf(ui.item)
+                    .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
+                this['adjustSize_' + this.settings.orientation](ui);
+            },
+
+            stop: function(event, ui) {
+                var $handleItem = ui.item;
+                this.changePosition(this.share.$draggingItems, '', '', '', '');
+                var partitionedItems = this.partition(this.share.$draggingItems, $handleItem);
+                $handleItem
+                    .before(partitionedItems.prev)
+                    .after(partitionedItems.following);
+                if (!this.settings.keepSelection) {
+                    this.share.$draggingItems.removeClass(this.settings.selectedClass);
+                }
             },
 
             toggleSelected: function($item) {
@@ -122,13 +150,6 @@
                 return $item.hasClass(this.settings.selectedClass);
             },
 
-            start: function(event, ui) {
-                ui.item.addClass(this.settings.selectedClass);
-                this.share.$draggingItems = this.$containerOf(ui.item)
-                    .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
-                this['adjustSize_' + this.settings.orientation](ui);
-            },
-
             adjustSize_vertical: function(ui) {
                 var height = sum(this.share.$draggingItems, function(el) {
                     return $(el).outerHeight();
@@ -141,11 +162,6 @@
                     return $(el).outerWidth();
                 });
                 ui.placeholder.width(width);
-            },
-
-            sort: function(event, ui) {
-                var partitionedItems = this.partition(this.share.$draggingItems, ui.item);
-                this['sort_' + this.settings.orientation](ui.item, partitionedItems.prev, partitionedItems.following);
             },
 
             sort_vertical: function($item, $prevItems, $followingItems) {
@@ -198,19 +214,6 @@
                     prev: $items.filter(':lt(' + index + ')'),
                     following: $items.filter(':gt(' + index + ')'),
                 };
-            },
-
-            stop: function(event, ui) {
-                var $handleItem = ui.item;
-                this.changePosition(this.share.$draggingItems, '', '', '', '');
-                var partitionedItems = this.partition(this.share.$draggingItems, $handleItem);
-                $handleItem
-                    .before(partitionedItems.prev)
-                    .after(partitionedItems.following);
-                if (!this.settings.keepSelection) {
-                    this.share.$draggingItems.removeClass(this.settings.selectedClass);
-                }
-                this.share.$draggingItems = null;
             },
 
             changePosition: function($jq, top, left, position, zIndex) {

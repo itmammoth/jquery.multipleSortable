@@ -115,11 +115,21 @@
     $('.v-sortable').multipleSortable({
         items: 'li',
         connectWith: '.v-sortable',
-        container: '#vertical-list'
-//        mousedown: function(e) { console.log('mousedown', e); },
+        container: '#vertical-list',
 //        click: function(e) { console.log('click', e); },
-//        sort: function(event, ui) { console.log('sort!', event, ui); },
-//        receive: function(event, ui) { console.log('receive!', event, ui); },
+//        activate:   function(event, ui, items) { console.log('activate', event, ui, items) },
+//        beforeStop: function(event, ui, items) { console.log('beforeStop', event, ui, items) },
+//        change:     function(event, ui, items) { console.log('change', event, ui, items) },
+//        create:     function(event, ui, items) { console.log('create', event, ui, items) },
+//        deactivate: function(event, ui, items) { console.log('deactivate', event, ui, items) },
+//        out:        function(event, ui, items) { console.log('out', event, ui, items) },
+//        over:       function(event, ui, items) { console.log('over', event, ui, items) },
+//        receive:    function(event, ui, items) { console.log('receive', event, ui, items) },
+//        remove:     function(event, ui, items) { console.log('remove', event, ui, items) },
+//        sort:       function(event, ui, items) { console.log('sort', event, ui, items) },
+//        start:      function(event, ui, items) { console.log('start', event, ui, items) },
+//        stop:       function(event, ui, items) { console.log('stop', event, ui, items) },
+//        update:     function(event, ui, items) { console.log('update', event, ui, items) },
     });
 
     $('.h-sortable').multipleSortable({
