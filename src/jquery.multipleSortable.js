@@ -6,10 +6,13 @@
     var methods = {
         init: function(options) {
             var settings = $.extend({
+                container: 'parent',
                 selectedClass: 'multiple-sortable-selected',
                 orientation: 'vertical',
-                mousedown: function(e) {},
                 click: function(e) {},
+                start: function(event, ui) {},
+                sort: function(event, ui) {},
+                receive: function(event, ui) {},
             }, options);
 
             return this.each(function() {
@@ -17,7 +20,6 @@
                 var multipleSortable = new MultipleSortable($this, settings).sortable();
                 var clickable = settings.cancel ? appendNot(settings.items, settings.cancel) : settings.items;
                 $this
-                    .on('mousedown', clickable, function(e) { multipleSortable.mouseDown(e); })
                     .on('click', clickable, function(e) { multipleSortable.click(e); })
                     .data('plugin_multipleSortable', multipleSortable)
                     .disableSelection();
@@ -27,6 +29,14 @@
 
     var appendNot = function(target, not) {
         return target + ':not("' + not + '")';
+    };
+
+    var sum = function(jq, calculator) {
+        var memo = 0;
+        jq.each(function(i, el) {
+            memo += calculator(el);
+        });
+        return memo;
     };
 
     /*
@@ -61,79 +71,137 @@
         $.extend(MultipleSortable.prototype, {
 
             sortable: function() {
-                this.$el.sortable(this.settings);
+                var that = this;
+                var sortableOptions = $.extend(true, {}, this.settings, {
+                    start: function(event, ui) {
+                        that.start(event, ui);
+                        // TODO: 配列で返す？
+                        that.settings.start(event, ui);
+                    },
+                    sort: function(event, ui) {
+                        that.sort(event, ui);
+                        // TODO: 配列で返す？
+                        that.settings.sort(event, ui);
+                    },
+                    receive: function(event, ui) {
+                        that.receive(event, ui);
+                        // TODO: 配列で返す？
+                        that.settings.receive(event, ui);
+                    },
+                });
+
+                this.$el.sortable(sortableOptions);
                 return this;
             },
 
-            mouseDown: function(e) {
-                var $item = $(e.currentTarget);
-
-                if (e.ctrlKey || e.metaKey) {
-                    this.addSelectedItem($item);
-                } else if (e.shiftKey) {
-                    this.expandSelection($item);
-                } else {
-                    this.selectItem($item);
-                }
-
-                this.settings.mousedown(e);
-            },
-
             click: function(e) {
-                var $item = $(e.currentTarget);
-
-                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                    this.selectOnlyAnItem($item);
-                }
-
+                this.toggleSelected($(e.currentTarget));
                 this.settings.click(e);
             },
 
-            addSelectedItem: function($item) {
+            toggleSelected: function($item) {
                 if (this.isSelecting($item)) {
                     $item.removeClass(this.settings.selectedClass);
                 } else {
                     $item.addClass(this.settings.selectedClass);
-                    this.$lastSelectedItem = $item;
                 }
             },
 
-            expandSelection: function($item) {
-                var myIndex = $item.index(),
-                    lsiIndex,
-                    until;
+            $selectedItems: function($item) {
+                return this.$container($item)
+                    .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
+            },
 
-                if (this.$lastSelectedItem) {
-                    lsiIndex = this.$lastSelectedItem.index();
-                    until = lsiIndex < myIndex ? 'prevUntil' : 'nextUntil';
-                } else {
-                    lsiIndex = 0;
-                    this.$lastSelectedItem = this.$el.find(this.settings.items).eq(0);
-                    until = 'prevUntil';
+            $container: function($item) {
+                if (this.settings.container === 'parent') {
+                    return $item.parent();
+                } else if (typeof this.settings.container === 'function') {
+                    return this.settings.container($item);
                 }
-
-                $item[until](this.$lastSelectedItem[0]).add(this.$lastSelectedItem).add($item)
-                    .addClass(this.settings.selectedClass);
-            },
-
-            selectItem: function($item) {
-                if (this.isSelecting($item)) return;
-
-                this.selectOnlyAnItem($item);
-                this.$lastSelectedItem = $item;
-            },
-
-            selectOnlyAnItem: function($item) {
-                this.globalSelectedItems().removeClass(this.settings.selectedClass);
-                $item.addClass(this.settings.selectedClass);
-            },
-
-            globalSelectedItems: function() {
-                return $('.' + this.settings.selectedClass);
+                return $(this.settings.container);
             },
 
             isSelecting: function($item) {
                 return $item.hasClass(this.settings.selectedClass);
+            },
+
+            start: function(event, ui) {
+                ui.item.addClass(this.settings.selectedClass);
+                this['adjustSize_' + this.settings.orientation](ui);
+            },
+
+            adjustSize_vertical: function(ui) {
+                var height = sum(this.$selectedItems(ui.item), function(el) {
+                    return $(el).outerHeight();
+                });
+                ui.placeholder.height(height);
+            },
+
+            adjustSize_horizontal: function(ui) {
+                var width = sum(this.$selectedItems(ui.item), function(el) {
+                    return $(el).outerWidth();
+                });
+                ui.placeholder.width(width);
+            },
+
+            sort: function(event, ui) {
+                var $items = this.$selectedItems(ui.item);
+                var index = $items.index(ui.item);
+                var $prevItems = $items.filter(':lt(' + index + ')');
+                var $followingItems = $items.filter(':gt(' + index + ')');
+                this['sort_' + this.settings.orientation](ui.item, $prevItems, $followingItems);
+            },
+
+            sort_vertical: function($item, $prevItems, $followingItems) {
+                var itemPosition = $item.position(),
+                    height = 0,
+                    zIndex = this.sortableOption('zIndex'),
+                    that = this;
+
+                $prevItems.get().reverse().forEach(function(el) {
+                    var $el = $(el);
+                    height += $el.outerHeight();
+                    that.changePosition($el, itemPosition.top - height, itemPosition.left, 'absolute', zIndex);
+                });
+
+                height = $item.outerHeight();
+                $followingItems.each(function(i, el) {
+                    var $el = $(el);
+                    that.changePosition($el, itemPosition.top + height, itemPosition.left, 'absolute', zIndex);
+                    height += $el.outerHeight();
+                });
+            },
+
+            sort_horizontal: function($item, $prevItems, $followingItems) {
+                var itemPosition = $item.position(),
+                    width = 0,
+                    zIndex = this.sortableOption('zIndex'),
+                    that = this;
+
+                $prevItems.get().reverse().forEach(function(el) {
+                    var $el = $(el);
+                    width += $el.outerWidth();
+                    that.changePosition($el, itemPosition.top, itemPosition.left - width, 'absolute', zIndex);
+                });
+
+                width = $item.outerWidth();
+                $followingItems.each(function(i, el) {
+                    var $el = $(el);
+                    that.changePosition($el, itemPosition.top, itemPosition.left + width, 'absolute', zIndex);
+                    width += $el.outerWidth();
+                });
+            },
+
+            sortableOption: function(name) {
+                return this.$el.sortable('option', name);
+            },
+
+            receive: function(event, ui) {
+                this.$selectedItems().removeClass(this.settings.selectedClass);
+            },
+
+            changePosition: function($item, top, left, position, zIndex) {
+                $item.css({ top: top, left: left, position: position, zIndex: zIndex });
             },
         });
 

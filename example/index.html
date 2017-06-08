@@ -1,57 +1,133 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>jquery.multipleSortable</title>
-    <script src="../lib/jquery.min.js" type="text/javascript"></script>
-    <script src="../lib/jquery-ui.min.js" type="text/javascript"></script>
-    <script src="../src/jquery.multipleSortable.js" type="text/javascript"></script>
-    <style type="text/css">
-      .v-sortable {
-        float: left;
-      }
-      .clear {
-        clear: both;
-      }
-      .multiple-sortable-selected {
-        background-color: yellow;
-      }
-    </style>
-  </head>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>jquery.multipleSortable</title>
+  <script src="../lib/jquery.min.js" type="text/javascript"></script>
+  <script src="../lib/jquery-ui.min.js" type="text/javascript"></script>
+  <script src="../src/jquery.multipleSortable.js" type="text/javascript"></script>
+  <style type="text/css">
+    .v-sortable {
+      float: left;
+    }
+    .v-sortable li {
+      display: block;
+      width: 80px;
+    }
 
-  <body>
-    <h1>jquery.multipleSortable</h1>
-    <hr />
+    .h-sortable span {
+      display: inline-block;
+      width: 80px;
+    }
 
-    <ul class="v-sortable">
-      <li>item1-1</li>
-      <li>item1-2</li>
-      <li>item1-3</li>
-      <li>item1-4</li>
-      <li>item1-5</li>
-      <li>item1-6</li>
-      <li>item1-7</li>
-      <li>item1-8</li>
-    </ul>
-    <ul class="v-sortable">
-      <li>item2-1</li>
-      <li>item2-2</li>
-      <li>item2-3</li>
-      <li>item2-4</li>
-      <li>item2-5</li>
-      <li>item2-6</li>
-      <li>item2-7</li>
-      <li>item2-8</li>
-    </ul>
-    <hr class="clear" />
+    .clear {
+      clear: both;
+    }
 
-    <script type="text/javascript">
-      $('.v-sortable').multipleSortable({
+    .multiple-sortable-selected {
+      background-color: yellow;
+    }
+  </style>
+</head>
+
+<body>
+<h1>jquery.multipleSortable</h1>
+<hr />
+
+<h2>Vertical list</h2>
+<div id="vertical-list">
+  <ul class="v-sortable">
+    <li>item1-1</li>
+    <li>item1-2</li>
+    <li>item1-3</li>
+    <li>item1-4</li>
+    <li>item1-5</li>
+    <li>item1-6</li>
+    <li>item1-7</li>
+    <li>item1-8</li>
+  </ul>
+  <ul class="v-sortable">
+    <li>item2-1</li>
+    <li>item2-2</li>
+    <li>item2-3</li>
+    <li>item2-4</li>
+    <li>item2-5</li>
+    <li>item2-6</li>
+    <li>item2-7</li>
+    <li>item2-8</li>
+  </ul>
+  <ul class="v-sortable">
+    <li>item3-1</li>
+    <li>item3-2</li>
+    <li>item3-3</li>
+    <li>item3-4</li>
+    <li>item3-5</li>
+    <li>item3-6</li>
+    <li>item3-7</li>
+    <li>item3-8</li>
+  </ul>
+</div>
+<hr class="clear" />
+
+<h2>Horizontal list</h2>
+<table border="1">
+  <tbody id="horizontal-list">
+    <tr>
+      <td class="h-sortable">
+        <span>item1-1</span>
+        <span>item1-2</span>
+        <span>item1-3</span>
+        <span>item1-4</span>
+        <span>item1-5</span>
+        <span>item1-6</span>
+        <span>item1-7</span>
+        <span>item1-8</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="h-sortable">
+        <span>item2-1</span>
+        <span>item2-2</span>
+        <span>item2-3</span>
+        <span>item2-4</span>
+        <span>item2-5</span>
+        <span>item2-6</span>
+        <span>item2-7</span>
+        <span>item2-8</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="h-sortable">
+        <span>item3-1</span>
+        <span>item3-2</span>
+        <span>item3-3</span>
+        <span>item3-4</span>
+        <span>item3-5</span>
+        <span>item3-6</span>
+        <span>item3-7</span>
+        <span>item3-8</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<script type="text/javascript">
+    $('.v-sortable').multipleSortable({
         items: 'li',
         connectWith: '.v-sortable',
-        // mousedown: function(e) { console.log('mousedown', e) },
-        // click: function(e) { console.log('click', e) },
-      });
-    </script>
-  </body>
+        container: '#vertical-list'
+//        mousedown: function(e) { console.log('mousedown', e); },
+//        click: function(e) { console.log('click', e); },
+//        sort: function(event, ui) { console.log('sort!', event, ui); },
+//        receive: function(event, ui) { console.log('receive!', event, ui); },
+    });
+
+    $('.h-sortable').multipleSortable({
+        items: 'span',
+        connectWith: '.h-sortable',
+        container: '#horizontal-list',
+        orientation: 'horizontal',
+    });
+</script>
+</body>
 </html>
