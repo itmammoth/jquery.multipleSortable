@@ -9,15 +9,18 @@
                 container: 'parent',
                 selectedClass: 'multiple-sortable-selected',
                 orientation: 'vertical',
+                keepSelection: true,
                 click: function(e) {},
                 start: function(event, ui) {},
                 sort: function(event, ui) {},
-                receive: function(event, ui) {},
+                stop: function(event, ui) {},
             }, options);
+
+            var share = {}; // shared object
 
             return this.each(function() {
                 var $this = $(this);
-                var multipleSortable = new MultipleSortable($this, settings).sortable();
+                var multipleSortable = new MultipleSortable($this, settings, share).sortable();
                 var clickable = settings.cancel ? appendNot(settings.items, settings.cancel) : settings.items;
                 $this
                     .on('click', clickable, function(e) { multipleSortable.click(e); })
@@ -31,11 +34,9 @@
         return target + ':not("' + not + '")';
     };
 
-    var sum = function(jq, calculator) {
+    var sum = function($jq, calculator) {
         var memo = 0;
-        jq.each(function(i, el) {
-            memo += calculator(el);
-        });
+        $jq.each(function(i, el) { memo += calculator(el); });
         return memo;
     };
 
@@ -60,9 +61,10 @@
         /*
          * Constructor
          */
-        var MultipleSortable = function($el, settings) {
+        var MultipleSortable = function($el, settings, share) {
             this.$el = $el;
             this.settings = settings;
+            this.share = share;
         };
 
         /*
@@ -83,10 +85,10 @@
                         // TODO: 配列で返す？
                         that.settings.sort(event, ui);
                     },
-                    receive: function(event, ui) {
-                        that.receive(event, ui);
+                    stop: function(event, ui) {
+                        that.stop(event, ui);
                         // TODO: 配列で返す？
-                        that.settings.receive(event, ui);
+                        that.settings.stop(event, ui);
                     },
                 });
 
@@ -107,12 +109,7 @@
                 }
             },
 
-            $selectedItems: function($item) {
-                return this.$container($item)
-                    .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
-            },
-
-            $container: function($item) {
+            $containerOf: function($item) {
                 if (this.settings.container === 'parent') {
                     return $item.parent();
                 } else if (typeof this.settings.container === 'function') {
@@ -127,29 +124,28 @@
 
             start: function(event, ui) {
                 ui.item.addClass(this.settings.selectedClass);
+                this.share.$draggingItems = this.$containerOf(ui.item)
+                    .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
                 this['adjustSize_' + this.settings.orientation](ui);
             },
 
             adjustSize_vertical: function(ui) {
-                var height = sum(this.$selectedItems(ui.item), function(el) {
+                var height = sum(this.share.$draggingItems, function(el) {
                     return $(el).outerHeight();
                 });
                 ui.placeholder.height(height);
             },
 
             adjustSize_horizontal: function(ui) {
-                var width = sum(this.$selectedItems(ui.item), function(el) {
+                var width = sum(this.share.$draggingItems, function(el) {
                     return $(el).outerWidth();
                 });
                 ui.placeholder.width(width);
             },
 
             sort: function(event, ui) {
-                var $items = this.$selectedItems(ui.item);
-                var index = $items.index(ui.item);
-                var $prevItems = $items.filter(':lt(' + index + ')');
-                var $followingItems = $items.filter(':gt(' + index + ')');
-                this['sort_' + this.settings.orientation](ui.item, $prevItems, $followingItems);
+                var partitionedItems = this.partition(this.share.$draggingItems, ui.item);
+                this['sort_' + this.settings.orientation](ui.item, partitionedItems.prev, partitionedItems.following);
             },
 
             sort_vertical: function($item, $prevItems, $followingItems) {
@@ -196,12 +192,29 @@
                 return this.$el.sortable('option', name);
             },
 
-            receive: function(event, ui) {
-                this.$selectedItems().removeClass(this.settings.selectedClass);
+            partition: function($items, $item) {
+                var index = $items.index($item);
+                return {
+                    prev: $items.filter(':lt(' + index + ')'),
+                    following: $items.filter(':gt(' + index + ')'),
+                };
             },
 
-            changePosition: function($item, top, left, position, zIndex) {
-                $item.css({ top: top, left: left, position: position, zIndex: zIndex });
+            stop: function(event, ui) {
+                var $handleItem = ui.item;
+                this.changePosition(this.share.$draggingItems, '', '', '', '');
+                var partitionedItems = this.partition(this.share.$draggingItems, $handleItem);
+                $handleItem
+                    .before(partitionedItems.prev)
+                    .after(partitionedItems.following);
+                if (!this.settings.keepSelection) {
+                    this.share.$draggingItems.removeClass(this.settings.selectedClass);
+                }
+                this.share.$draggingItems = null;
+            },
+
+            changePosition: function($jq, top, left, position, zIndex) {
+                $jq.css({ top: top, left: left, position: position, zIndex: zIndex });
             },
         });
 
