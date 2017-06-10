@@ -3,6 +3,8 @@
 ;(function($) {
     'use strict';
 
+    var SHARED_DATA_KEY = 'plugin_multipleSortable_share';
+
     var JQUERY_SORTABLE_EVENTS = [
         'activate',
         'beforeStop',
@@ -23,18 +25,16 @@
     var methods = {
         init: function(options) {
             var settings = $.extend({
-                container: 'parent',
+                container: 'sortable',
                 selectedClass: 'multiple-sortable-selected',
                 orientation: 'vertical',
                 keepSelection: true,
                 click: function(e) {},
             }, options);
 
-            var share = {}; // shared object
-
             return this.each(function() {
                 var $this = $(this);
-                var multipleSortable = new MultipleSortable($this, settings, share).sortable();
+                var multipleSortable = new MultipleSortable($this, settings).sortable();
                 var clickable = settings.cancel ? appendNot(settings.items, settings.cancel) : settings.items;
                 $this
                     .on('click', clickable, function(e) { multipleSortable.click(e); })
@@ -75,10 +75,9 @@
         /*
          * Constructor
          */
-        var MultipleSortable = function($el, settings, share) {
+        var MultipleSortable = function($el, settings) {
             this.$el = $el;
             this.settings = settings;
-            this.share = share;
         };
 
         /*
@@ -92,7 +91,10 @@
                 JQUERY_SORTABLE_EVENTS.forEach(function(jse) {
                     sortableEvents[jse] = function(event, ui) {
                         that[jse] && that[jse](event, ui);
-                        that.settings[jse] && that.settings[jse](event, ui, that.share.$draggingItems);
+                        if (that.settings[jse]) {
+                            var $items = that.getSharedObjectOf(ui.item).$draggingItems;
+                            that.settings[jse](event, ui, $items);
+                        }
                     };
                 });
                 this.$el.sortable($.extend(true, {}, this.settings, sortableEvents));
@@ -106,27 +108,36 @@
             },
 
             sort: function(event, ui) {
-                var partitionedItems = this.partition(this.share.$draggingItems, ui.item);
+                var partitionedItems = this.partition(this.getSharedObjectOf(ui.item).$draggingItems, ui.item);
                 this['sort_' + this.settings.orientation](ui.item, partitionedItems.prev, partitionedItems.following);
             },
 
             start: function(event, ui) {
                 ui.item.addClass(this.settings.selectedClass);
-                this.share.$draggingItems = this.$containerOf(ui.item)
+                var draggingItems = this.$containerOf(ui.item)
                     .find('.' + this.settings.selectedClass + ':not(".ui-sortable-placeholder")');
+                this.setSharedObjectOf(ui.item, { $draggingItems: draggingItems });
                 this['adjustSize_' + this.settings.orientation](ui);
             },
 
             stop: function(event, ui) {
                 var $handleItem = ui.item;
-                this.changePosition(this.share.$draggingItems, '', '', '', '');
-                var partitionedItems = this.partition(this.share.$draggingItems, $handleItem);
+                this.changePosition(this.getSharedObjectOf(ui.item).$draggingItems, '', '', '', '');
+                var partitionedItems = this.partition(this.getSharedObjectOf(ui.item).$draggingItems, $handleItem);
                 $handleItem
                     .before(partitionedItems.prev)
                     .after(partitionedItems.following);
                 if (!this.settings.keepSelection) {
-                    this.share.$draggingItems.removeClass(this.settings.selectedClass);
+                    this.getSharedObjectOf(ui.item).$draggingItems.removeClass(this.settings.selectedClass);
                 }
+            },
+
+            getSharedObjectOf: function($item) {
+                return this.$containerOf($item).data(SHARED_DATA_KEY) || {};
+            },
+
+            setSharedObjectOf: function($item, data) {
+                return this.$containerOf($item).data(SHARED_DATA_KEY, data);
             },
 
             toggleSelected: function($item) {
@@ -138,7 +149,9 @@
             },
 
             $containerOf: function($item) {
-                if (this.settings.container === 'parent') {
+                if (this.settings.container === 'sortable') {
+                    return this.$el;
+                } else if (this.settings.container === 'parent') {
                     return $item.parent();
                 } else if (this.settings.container instanceof jQuery) {
                     return this.settings.container;
@@ -153,14 +166,14 @@
             },
 
             adjustSize_vertical: function(ui) {
-                var height = sum(this.share.$draggingItems, function(el) {
+                var height = sum(this.getSharedObjectOf(ui.item).$draggingItems, function(el) {
                     return $(el).outerHeight();
                 });
                 ui.placeholder.height(height);
             },
 
             adjustSize_horizontal: function(ui) {
-                var width = sum(this.share.$draggingItems, function(el) {
+                var width = sum(this.getSharedObjectOf(ui.item).$draggingItems, function(el) {
                     return $(el).outerWidth();
                 });
                 ui.placeholder.width(width);
